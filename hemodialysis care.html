@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HemoCare Analytics - Pemantauan Pasien Hemodialisis</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            teal: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .dark-mode { background-color: #0f172a; color: #f8fafc; }
+    .dark-mode .card-bg { background-color: #1e293b; color: #f8fafc; border-color: #334155; }
+    .dark-mode input, .dark-mode select, .dark-mode textarea { background-color: #0f172a; color: #fff; border-color: #475569; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background-color: #fff !important; color: #000 !important; }
+      .print-only { display: block !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 transition-colors duration-200 min-h-screen flex flex-col">
+
+  <!-- ================= HEADER UTAMA ================= -->
+  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 transition-colors no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-4">
+      
+      <!-- Logo & Info Unit -->
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-lg shadow-teal-600/20">
+          <i class="fa-solid fa-droplet text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-extrabold text-teal-800 dark:text-teal-400 leading-tight">HemoCare Analytics</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">RSUD RT Notopuro Sidoarjo — Nephrology Care</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center flex-wrap gap-2">
+        <button id="installAppBtn" class="hidden px-3.5 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-700 text-xs font-semibold hover:bg-teal-100 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-download"></i> Install App
+        </button>
+
+        <button onclick="backupData()" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5" title="Backup Database Pasien">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Backup
+        </button>
+
+        <label class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer" title="Restore Database Pasien">
+          <i class="fa-solid fa-cloud-arrow-down"></i> Restore
+          <input type="file" id="restoreFileInput" accept=".json" class="hidden" onchange="restoreData(event)">
+        </label>
+
+        <button onclick="toggleDarkMode()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="Toggle Tema Gelap/Terang">
+          <i id="themeIcon" class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Switcher Nav Portal -->
+    <div class="bg-slate-100/80 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex">
+        <button id="btnRoleNurse" onclick="switchRole('nurse')" class="px-6 py-2.5 font-bold text-sm transition flex items-center gap-2 border-b-2 border-teal-600 text-teal-800 dark:text-teal-400 bg-white dark:bg-slate-900">
+          <i class="fa-solid fa-user-nurse"></i> Portal Perawat
+        </button>
+        <button id="btnRolePatient" onclick="switchRole('patient')" class="px-6 py-2.5 font-bold text-sm transition flex items-center gap-2 border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-teal-600">
+          <i class="fa-solid fa-user-injured"></i> Portal Pasien
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ============================================================== -->
+    <!--                       1. PORTAL PERAWAT                        -->
+    <!-- ============================================================== -->
+    <section id="nurseDashboard">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-black text-slate-800 dark:text-white">Dashboard Manajemen Pasien Hemodialisis</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Input data medis, upload file lab, dan kelola PIN akses pasien hemodialisis rutin.</p>
+        </div>
+        <button onclick="openPatientModal()" class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md font-bold text-sm transition flex items-center gap-2">
+          <i class="fa-solid fa-user-plus"></i> Tambah Pasien Baru
+        </button>
+      </div>
+
+      <!-- Quick Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="card-bg bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-teal-50 dark:bg-teal-900/40 text-teal-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-400 uppercase">Total Pasien Terdaftar</p>
+            <h3 id="statTotalPatients" class="text-2xl font-black text-slate-800 dark:text-white">0</h3>
+          </div>
+        </div>
+
+        <div class="card-bg bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-400 uppercase">Waspada IDWG (&ge; 5%)</p>
+            <h3 id="statHighIDWG" class="text-2xl font-black text-slate-800 dark:text-white">0</h3>
+          </div>
+        </div>
+
+        <div class="card-bg bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-file-medical"></i>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-slate-400 uppercase">Total Berkas Lab Terunggah</p>
+            <h3 id="statTotalDocs" class="text-2xl font-black text-slate-800 dark:text-white">0</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabel Pasien Perawat -->
+      <div class="card-bg bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div class="relative w-full sm:w-72">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" id="nurseSearchInput" oninput="renderNurseTable()" placeholder="Cari No. RM atau Nama Pasien..." class="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500">
+          </div>
+          <span class="text-xs text-slate-400 font-medium">Data tersimpan di penyimpanan browser lokal</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+            <thead class="bg-slate-100/75 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 text-xs uppercase font-bold tracking-wider">
+              <tr>
+                <th class="px-5 py-3.5">No. RM & Nama Pasien</th>
+                <th class="px-5 py-3.5">PIN Akses</th>
+                <th class="px-5 py-3.5">Antropometri & BMI</th>
+                <th class="px-5 py-3.5">IDWG & Batas Minum</th>
+                <th class="px-5 py-3.5">File Lab</th>
+                <th class="px-5 py-3.5 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="nursePatientTableBody" class="divide-y divide-slate-200 dark:divide-slate-700 font-normal">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================== -->
+    <!--                       2. PORTAL PASIEN                         -->
+    <!-- ============================================================== -->
+    <section id="patientDashboard" class="hidden">
+      
+      <!-- Login Pasien (Tampil jika belum login) -->
+      <div id="patientLoginView" class="max-w-md mx-auto my-12 card-bg bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 rounded-2xl bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300 mx-auto flex items-center justify-center text-2xl mb-3 shadow">
+            <i class="fa-solid fa-key"></i>
+          </div>
+          <h3 class="text-2xl font-black text-slate-800 dark:text-white">Portal Akses Pasien</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Masukkan 4 digit PIN yang diberikan oleh Perawat Hemodialisis Anda untuk melihat rekam lab dan panduan cairan.</p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">Pilih Nama Pasien</label>
+            <select id="loginPatientSelect" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+              <!-- Rendered via JS -->
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">PIN 4 Digit</label>
+            <input type="password" id="loginPinInput" maxlength="4" placeholder="••••" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-center tracking-widest text-lg font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none">
+          </div>
+
+          <div id="loginErrorMsg" class="hidden text-xs text-rose-500 font-semibold bg-rose-50 dark:bg-rose-900/30 p-2.5 rounded-lg border border-rose-200 dark:border-rose-800 text-center">
+            PIN Salah! Silakan tanyakan kepada perawat ruangan HD.
+          </div>
+
+          <button onclick="attemptPatientLogin()" class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-right-to-bracket"></i> Masuk ke Portal Saya
+          </button>
+        </div>
+      </div>
+
+      <!-- Konten Pasien (Tampil setelah berhasil login) -->
+      <div id="patientContentView" class="hidden space-y-6">
+        
+        <!-- Header Profil Pasien Terpilih -->
+        <div class="card-bg bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div class="flex items-center gap-2.5 mb-1">
+              <span id="ptBannerRM" class="text-xs font-black px-2.5 py-0.5 rounded-md bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">RM: 00-00-00</span>
+              <span class="text-xs font-semibold text-slate-400">Ruang Hemodialisis RSUD RT Notopuro Sidoarjo</span>
+            </div>
+            <h2 id="ptBannerName" class="text-3xl font-black text-slate-800 dark:text-white">Nama Pasien</h2>
+          </div>
+
+          <div class="flex items-center gap-2.5 no-print">
+            <button onclick="window.print()" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 transition flex items-center gap-2">
+              <i class="fa-solid fa-print"></i> Unduh Ringkasan Laporan
+            </button>
+            <button onclick="patientLogout()" class="px-4 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-100 transition flex items-center gap-2">
+              <i class="fa-solid fa-right-from-bracket"></i> Keluar PIN
+            </button>
+          </div>
+        </div>
+
+        <!-- 3 Kartu Metrik Kunci -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <!-- 1. BMI -->
+          <div class="card-bg bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Status Gizi (BMI Kemenkes)</span>
+              <i class="fa-solid fa-weight-scale text-teal-600 text-lg"></i>
+            </div>
+            <div class="flex items-baseline gap-2 mb-1">
+              <h3 id="ptMetricBMI" class="text-3xl font-black text-slate-800 dark:text-white">0.0</h3>
+              <span id="ptMetricBMICat" class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">Belum dihitung</span>
+            </div>
+            <p id="ptMetricAntropoDesc" class="text-xs text-slate-500 dark:text-slate-400 font-medium">BB: - kg | TB: - cm | Kering: - kg</p>
+          </div>
+
+          <!-- 2. IDWG -->
+          <div class="card-bg bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">IDWG (Interdialytic Wt Gain)</span>
+              <i class="fa-solid fa-chart-line text-blue-600 text-lg"></i>
+            </div>
+            <div class="flex items-baseline gap-2 mb-1">
+              <h3 id="ptMetricIDWG" class="text-3xl font-black text-slate-800 dark:text-white">0.0%</h3>
+              <span id="ptMetricIDWGStatus" class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Normal (&lt; 5%)</span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Kenaikan BB antar sesi dialisis. Target aman &lt; 5% BB Kering.</p>
+          </div>
+
+          <!-- 3. Batas Minum Harian -->
+          <div class="card-bg bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Batas Minum Harian</span>
+              <i class="fa-solid fa-glass-water text-cyan-600 text-lg"></i>
+            </div>
+            <div class="flex items-baseline gap-2 mb-1">
+              <h3 id="ptMetricFluid" class="text-3xl font-black text-slate-800 dark:text-white">0 ml</h3>
+              <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800">Urine 24j + 500 ml</span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Saran ketat untuk mencegah overload cairan & sesak/edema paru.</p>
+          </div>
+        </div>
+
+        <!-- Grafik & Riwayat Antropometri -->
+        <div class="card-bg bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+            <div>
+              <h3 class="text-lg font-black text-slate-800 dark:text-white">Grafik Tren BMI & Riwayat Antropometri</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Titik nilai BMI otomatis dikodekan warna sesuai standar Kemenkes RI (Kurus, Normal, Overweight, Obesitas).</p>
+            </div>
+            <div class="flex items-center gap-2 text-xs font-bold">
+              <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-800">Kurus &lt;18.5</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Normal 18.5-22.9</span>
+              <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800">Overwt 23-24.9</span>
+              <span class="px-2 py-0.5 rounded bg-orange-100 text-orange-800">Obs I 25-29.9</span>
+              <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800">Obs II &ge;30</span>
+            </div>
+          </div>
+
+          <div class="h-64 w-full mb-6">
+            <canvas id="bmiChartCanvas"></canvas>
+          </div>
+
+          <!-- Tabel Riwayat Sesi -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+              <thead class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold uppercase">
+                <tr>
+                  <th class="px-4 py-2.5">Tanggal / Sesi</th>
+                  <th class="px-4 py-2.5">BB Aktual (kg)</th>
+                  <th class="px-4 py-2.5">BB Kering (kg)</th>
+                  <th class="px-4 py-2.5">Tinggi Badan (cm)</th>
+                  <th class="px-4 py-2.5">Nilai BMI</th>
+                  <th class="px-4 py-2.5">Kategori Kemenkes</th>
+                </tr>
+              </thead>
+              <tbody id="ptHistoryTableBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                <!-- JS populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 13 Parameter Laboratorium Hemodialisis -->
+        <div class="card-bg bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h3 class="text-lg font-black text-slate-800 dark:text-white">Analisis Hasil Laboratorium Hemodialisis (13 Parameter)</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Ekstraksi nilai otomatis & klasifikasi status (Naik / Normal / Turun).</p>
+            </div>
+            <button onclick="openPatientModal(currentActivePatientIndex)" class="no-print px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-teal-700 dark:text-teal-300 rounded-lg text-xs font-bold hover:bg-slate-200 transition">
+              <i class="fa-solid fa-pen-to-square"></i> Perbarui / Upload Lab
+            </button>
+          </div>
+
+          <div id="labsCardGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <!-- 13 Cards will be rendered by JS -->
+          </div>
+        </div>
+
+        <!-- File Lab Terlampir (Download/View) -->
+        <div class="card-bg bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+          <h3 class="text-lg font-black text-slate-800 dark:text-white mb-1">File Lab Terlampir (PDF / JPG / PNG)</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Dokumen yang diunggah perawat dapat dibuka atau diunduh kembali oleh pasien.</p>
+          
+          <div id="ptFilesList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <!-- Files rendered here -->
+          </div>
+        </div>
+
+        <!-- Panduan Diet & Nutrisi Hemodialisis -->
+        <div class="bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-slate-800 dark:to-teal-950/40 rounded-3xl p-6 border border-teal-200 dark:border-teal-800 text-slate-800 dark:text-slate-200">
+          <h3 class="text-lg font-black text-teal-900 dark:text-teal-300 mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-apple-whole"></i> Panduan Diet & Nutrisi Hemodialisis
+          </h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-4">Anjuran spesifik untuk pasien gagal ginjal kronis on hemodialisis rutin:</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div class="bg-white/80 dark:bg-slate-900/60 p-3.5 rounded-xl border border-teal-100 dark:border-slate-700">
+              <span class="font-bold text-teal-800 dark:text-teal-300 block mb-1">1. Kebutuhan Protein Tinggi</span>
+              Asupan protein 1.0 - 1.2 g/kg BB Kering/hari. Utamakan 50% protein bernilai biologis tinggi (putih telur, ikan segar, dada ayam tanpa kulit).
+            </div>
+            <div class="bg-white/80 dark:bg-slate-900/60 p-3.5 rounded-xl border border-teal-100 dark:border-slate-700">
+              <span class="font-bold text-teal-800 dark:text-teal-300 block mb-1">2. Batasi Kalium & Fosfat</span>
+              Hindari buah tinggi kalium (pisang, air kelapa, alpukat) jika Kalium serum tinggi. Batasi produk olahan, keju, jeroan, dan minuman berkarbonasi untuk kontrol fosfat.
+            </div>
+            <div class="bg-white/80 dark:bg-slate-900/60 p-3.5 rounded-xl border border-teal-100 dark:border-slate-700">
+              <span class="font-bold text-teal-800 dark:text-teal-300 block mb-1">3. Disiplin Batas Cairan</span>
+              Timbang BB setiap hari di rumah. Patuhi rumus batas minum harian (Urine + 500 ml) agar tidak terjadi sesak nafas saat datang ke jadwal HD berikutnya.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= MODAL: TAMBAH / EDIT PASIEN & LAB ================= -->
+  <div id="patientModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-sm flex justify-center items-center p-4">
+    <div class="card-bg bg-white dark:bg-slate-800 w-full max-w-3xl rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <div>
+          <h3 id="modalPatientTitle" class="text-lg font-black text-slate-800 dark:text-white">Tambah Data Pasien Hemodialisis</h3>
+          <p class="text-xs text-slate-500">Kelola informasi demografis, target berat kering, dan 13 parameter lab.</p>
+        </div>
+        <button onclick="closePatientModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xl">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <form id="patientForm" onsubmit="handlePatientFormSubmit(event)" class="p-6 overflow-y-auto space-y-6 text-xs flex-1">
+        <input type="hidden" id="formPatientIndex" value="">
+
+        <!-- Bagian 1: Identitas & PIN -->
+        <div>
+          <h4 class="font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-3">1. Data Pokok & Akses PIN</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Nama Lengkap Pasien *</label>
+              <input type="text" id="formName" required placeholder="Contoh: Bpk. Sugiarto" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Nomor Rekam Medis (RM) *</label>
+              <input type="text" id="formRM" required placeholder="00-45-89" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">PIN Akses 4 Digit *</label>
+              <input type="text" id="formPIN" maxlength="4" required placeholder="1976" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm text-center font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- Bagian 2: Antropometri & Urine -->
+        <div>
+          <h4 class="font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-3">2. Antropometri & Urine Output</h4>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">BB Aktual / Basah (kg)</label>
+              <input type="number" step="0.1" id="formBB" required placeholder="66.5" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">BB Kering Target (kg)</label>
+              <input type="number" step="0.1" id="formDryBB" required placeholder="62.0" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Tinggi Badan (cm)</label>
+              <input type="number" id="formTB" required placeholder="168" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Urine Output 24 Jam (ml)</label>
+              <input type="number" id="formUrine" placeholder="400" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- Bagian 3: 13 Parameter Laboratorium -->
+        <div>
+          <div class="flex justify-between items-center mb-3">
+            <h4 class="font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider">3. Hasil Laboratorium (13 Parameter Kunci)</h4>
+            <span class="text-[11px] text-slate-400">Contoh format: "9.8 (Turun)" atau isi angka saja</span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">1. Leukosit (Leu)</label>
+              <input type="text" id="lab_leu" placeholder="8.2 (Normal)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">2. Hemoglobin (Hb)</label>
+              <input type="text" id="lab_hb" placeholder="9.8 (Turun)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">3. Trombosit</label>
+              <input type="text" id="lab_trombosit" placeholder="210 (Normal)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">4. Retikulosit</label>
+              <input type="text" id="lab_retikulosit" placeholder="1.2% (Normal)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">5. BUN</label>
+              <input type="text" id="lab_bun" placeholder="68 (Naik)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">6. Serum Kreatinin (SK)</label>
+              <input type="text" id="lab_sk" placeholder="7.4 (Naik)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">7. Albumin</label>
+              <input type="text" id="lab_albumin" placeholder="3.6 (Normal)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">8. Serum Iron (SI)</label>
+              <input type="text" id="lab_si" placeholder="55 (Turun)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">9. TIBC</label>
+              <input type="text" id="lab_tibc" placeholder="210 (Turun)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">10. Natrium (Na)</label>
+              <input type="text" id="lab_na" placeholder="138 (Normal)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">11. Kalium (K)</label>
+              <input type="text" id="lab_kalium" placeholder="5.6 (Naik)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">12. Calcium (Ca)</label>
+              <input type="text" id="lab_calcium" placeholder="8.2 (Turun)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+            <div class="sm:col-span-3">
+              <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">13. Fosfat (Phosphat)</label>
+              <input type="text" id="lab_phosphat" placeholder="5.8 (Naik)" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Bagian 4: Upload Berkas Lab -->
+        <div>
+          <h4 class="font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-2">4. Upload Berkas Lab (PDF / JPG / PNG)</h4>
+          <input type="file" id="formFileInput" multiple accept=".pdf,image/png,image/jpeg" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
+          <p class="text-[11px] text-slate-400 mt-1">Berkas disimpan secara lokal dalam browser dan dapat diunduh oleh pasien.</p>
+          <div id="formFilesCurrentList" class="mt-2 space-y-1"></div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
+          <button type="button" onclick="closePatientModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-200">Batal</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold shadow-md">Simpan Data Pasien</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: TAMBAH SESI ANTROPOMETRI ================= -->
+  <div id="sessionModal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex justify-center items-center p-4">
+    <div class="card-bg bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-700 p-6 shadow-2xl">
+      <h3 class="text-lg font-black text-slate-800 dark:text-white mb-1">Tambah Catatan Sesi HD</h3>
+      <p class="text-xs text-slate-400 mb-4">Perbarui riwayat penimbangan untuk grafik tren BMI pasien.</p>
+
+      <form id="sessionForm" onsubmit="handleSessionSubmit(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="sessionPatientIndex">
+        <div>
+          <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Tanggal / Label Sesi</label>
+          <input type="text" id="sessionDate" required placeholder="Contoh: 14 Nov" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">BB Aktual / Basah (kg)</label>
+          <input type="number" step="0.1" id="sessionBB" required placeholder="66.5" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">BB Kering Target (kg)</label>
+          <input type="number" step="0.1" id="sessionDryBB" required placeholder="62.0" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-600 dark:text-slate-300 mb-1">Tinggi Badan (cm)</label>
+          <input type="number" id="sessionTB" required placeholder="168" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-sm">
+        </div>
+        <div class="pt-3 flex justify-end gap-2">
+          <button type="button" onclick="closeSessionModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold">Batal</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-teal-600 text-white font-bold">Simpan Sesi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="mt-auto border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 text-center text-xs text-slate-500 dark:text-slate-400 no-print">
+    <div class="max-w-7xl mx-auto px-4 space-y-1">
+      <p class="font-bold text-slate-700 dark:text-slate-300">Created : dr. Puguh Widagdo, SpPD - FINASIM Fellowship Hemodialisis</p>
+      <p>bersama Tim Perawat Hemodialisis RSUD RT NOTOPURO SIDOARJO</p>
+      <p class="text-[10px] text-slate-400">Sistem Pemantauan Nutrisi & Laboratorium Hemodialisis &copy; <span id="yearSpan"></span></p>
+    </div>
+  </footer>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    document.getElementById('yearSpan').textContent = new Date().getFullYear();
+
+    // Default Demo Data
+    let patients = JSON.parse(localStorage.getItem('hemocare_patients')) || [
+      {
+        name: "Bpk. Sugiarto",
+        rm: "00-45-89",
+        pin: "1976",
+        urine: 400,
+        bb: 66.5,
+        dryBb: 62.0,
+        tb: 168,
+        labs: {
+          leu: "8.2 (Normal)", hb: "9.8 (Turun)", trombosit: "210 (Normal)", retikulosit: "1.2% (Normal)",
+          bun: "68 (Naik)", sk: "7.4 (Naik)", albumin: "3.6 (Normal)", si: "55 (Turun)",
+          tibc: "210 (Turun)", na: "138 (Normal)", kalium: "5.6 (Naik)", calcium: "8.2 (Turun)", phosphat: "5.8 (Naik)"
+        },
+        files: [
+          { name: "Hasil_Lab_Darah_Lengkap.pdf", type: "pdf", data: "data:application/pdf;base64,JVBERi0xLjQKJUZha2UgUERG" },
+          { name: "Foto_KIMIA_Darah.jpg", type: "img", data: "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&w=400&q=80" }
+        ],
+        history: [
+          { date: "10 Okt", bb: 67.0, dryBb: 62.0, tb: 168, bmi: 23.7, category: "Overweight" },
+          { date: "24 Okt", bb: 66.8, dryBb: 62.0, tb: 168, bmi: 23.6, category: "Overweight" },
+          { date: "07 Nov", bb: 66.5, dryBb: 62.0, tb: 168, bmi: 23.5, category: "Overweight" }
+        ]
+      }
+    ];
+
+    let currentActivePatientIndex = null;
+    let bmiChart = null;
+
+    // 13 Parameter Definitions & Labels
+    const LAB_KEYS = [
+      { id: 'leu', name: 'Leukosit (Leu)', unit: '10^3/uL' },
+      { id: 'hb', name: 'Hemoglobin (Hb)', unit: 'g/dL' },
+      { id: 'trombosit', name: 'Trombosit', unit: '10^3/uL' },
+      { id: 'retikulosit', name: 'Retikulosit', unit: '%' },
+      { id: 'bun', name: 'BUN', unit: 'mg/dL' },
+      { id: 'sk', name: 'Serum Kreatinin (SK)', unit: 'mg/dL' },
+      { id: 'albumin', name: 'Albumin', unit: 'g/dL' },
+      { id: 'si', name: 'Serum Iron (SI)', unit: 'ug/dL' },
+      { id: 'tibc', name: 'TIBC', unit: 'ug/dL' },
+      { id: 'na', name: 'Natrium (Na)', unit: 'mmol/L' },
+      { id: 'kalium', name: 'Kalium (K)', unit: 'mmol/L' },
+      { id: 'calcium', name: 'Calcium (Ca)', unit: 'mg/dL' },
+      { id: 'phosphat', name: 'Fosfat (Phosphat)', unit: 'mg/dL' }
+    ];
+
+    // Initialize on Page Load
+    window.onload = function() {
+      renderNurseTable();
+      populateLoginSelect();
+      checkThemeOnLoad();
+      registerServiceWorker();
+    };
+
+    // --- PWA Service Worker Registration ---
+    function registerServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        const swCode = `
+          self.addEventListener('install', e => self.skipWaiting());
+          self.addEventListener('activate', e => self.clients.claim());
+          self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+        `;
+        const blob = new Blob([swCode], { type: 'text/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(swUrl).then(() => {
+          console.log("HemoCare PWA Service Worker Registered.");
+        }).catch(err => console.log("SW error:", err));
+      }
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('installAppBtn');
+      if (btn) btn.classList.remove('hidden');
+    });
+
+    document.getElementById('installAppBtn')?.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          document.getElementById('installAppBtn').classList.add('hidden');
+        }
+        deferredPrompt = null;
+      }
+    });
+
+    // --- Theme Management ---
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark-mode');
+      localStorage.setItem('hemocare_theme', isDark ? 'dark' : 'light');
+      document.getElementById('themeIcon').className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      if (bmiChart) renderChart(patients[currentActivePatientIndex]);
+    }
+
+    function checkThemeOnLoad() {
+      const savedTheme = localStorage.getItem('hemocare_theme');
+      if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeIcon').className = 'fa-solid fa-sun';
+      }
+    }
+
+    // --- Role Switcher ---
+    function switchRole(role) {
+      const nurseTab = document.getElementById('nurseDashboard');
+      const patientTab = document.getElementById('patientDashboard');
+      const btnNurse = document.getElementById('btnRoleNurse');
+      const btnPatient = document.getElementById('btnRolePatient');
+
+      if (role === 'nurse') {
+        nurseTab.classList.remove('hidden');
+        patientTab.classList.add('hidden');
+        btnNurse.className = "px-6 py-2.5 font-bold text-sm transition flex items-center gap-2 border-b-2 border-teal-600 text-teal-800 dark:text-teal-400 bg-white dark:bg-slate-900";
+        btnPatient.className = "px-6 py-2.5 font-bold text-sm transition flex items-center gap-2 border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-teal-600";
+        renderNurseTable();
+      } else {
+        nurseTab.classList.add('hidden');
+        patientTab.classList.remove('hidden');
+        btnPatient.className = "px-6 py-2.5 font-bold text-sm transition flex items-center gap-2 border-b-2 border-teal-600 text-teal-800 dark:text-teal-400 bg-white dark:bg-slate-900";
+        btnNurse.className = "px-6 py-2.5 font-bold text-sm transition flex items-center gap-2 border-b-2 border-transparent text-slate-600 dark:text-slate-400 hover:text-teal-600";
+        populateLoginSelect();
+        if (currentActivePatientIndex === null) {
+          document.getElementById('patientLoginView').classList.remove('hidden');
+          document.getElementById('patientContentView').classList.add('hidden');
+        } else {
+          loadPatientView(currentActivePatientIndex);
+        }
+      }
+    }
+
+    // --- Calculation Utilities ---
+    function calculateBMI(bb, tb) {
+      if (!bb || !tb || tb <= 0) return 0;
+      const heightInMeters = tb / 100;
+      return (bb / (heightInMeters * heightInMeters)).toFixed(1);
+    }
+
+    function getBMIClassificationKemenkes(bmi) {
+      const val = parseFloat(bmi);
+      if (val < 18.5) return { category: 'Kurus (Underweight)', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' };
+      if (val <= 22.9) return { category: 'Normal', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' };
+      if (val <= 24.9) return { category: 'Overweight', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' };
+      if (val <= 29.9) return { category: 'Obesitas I', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' };
+      return { category: 'Obesitas II', color: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200' };
+    }
+
+    function calculateIDWG(bb, dryBb) {
+      if (!dryBb || dryBb <= 0) return 0;
+      return (((bb - dryBb) / dryBb) * 100).toFixed(1);
+    }
+
+    function calculateFluidAllowance(urine) {
+      const u = parseFloat(urine) || 0;
+      return u + 500;
+    }
+
+    // --- Save helper ---
+    function savePatientsToLocalStorage() {
+      localStorage.setItem('hemocare_patients', JSON.stringify(patients));
+    }
+
+    // --- Render Nurse Table ---
+    function renderNurseTable() {
+      const tbody = document.getElementById('nursePatientTableBody');
+      const search = (document.getElementById('nurseSearchInput').value || '').toLowerCase();
+      tbody.innerHTML = '';
+
+      let totalHighIDWG = 0;
+      let totalDocs = 0;
+
+      patients.forEach((p, index) => {
+        const idwg = calculateIDWG(p.bb, p.dryBb);
+        const bmi = calculateBMI(p.bb, p.tb);
+        const bmiCat = getBMIClassificationKemenkes(bmi);
+        const fluid = calculateFluidAllowance(p.urine);
+
+        if (parseFloat(idwg) >= 5) totalHighIDWG++;
+        if (p.files) totalDocs += p.files.length;
+
+        if (search && !p.name.toLowerCase().includes(search) && !p.rm.toLowerCase().includes(search)) {
+          return;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-750/50 transition";
+        tr.innerHTML = `
+          <td class="px-5 py-4">
+            <div class="font-extrabold text-slate-900 dark:text-white">${p.name}</div>
+            <div class="text-xs text-teal-600 dark:text-teal-400 font-semibold">RM: ${p.rm}</div>
+          </td>
+          <td class="px-5 py-4">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 font-mono font-bold text-xs">
+              <i class="fa-solid fa-lock text-[10px] text-slate-400"></i> ${p.pin}
+            </span>
+          </td>
+          <td class="px-5 py-4">
+            <div class="flex items-center gap-2">
+              <span class="font-black text-slate-800 dark:text-white">BMI ${bmi}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${bmiCat.color}">${bmiCat.category}</span>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">BB: ${p.bb}kg | TB: ${p.tb}cm | Kering: ${p.dryBb}kg</div>
+          </td>
+          <td class="px-5 py-4">
+            <div class="flex items-center gap-1.5">
+              <span class="font-black ${parseFloat(idwg) >= 5 ? 'text-rose-600' : 'text-emerald-600'}">${idwg}%</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded font-semibold ${parseFloat(idwg) >= 5 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+                ${parseFloat(idwg) >= 5 ? 'Overload' : 'Aman'}
+              </span>
+            </div>
+            <div class="text-[11px] text-cyan-600 dark:text-cyan-400 font-medium">Batas: &le; ${fluid} ml/hari</div>
+          </td>
+          <td class="px-5 py-4">
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${p.files && p.files.length ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-400'}">
+              <i class="fa-solid fa-paperclip"></i> ${p.files ? p.files.length : 0} file
+            </span>
+          </td>
+          <td class="px-5 py-4 text-center">
+            <div class="inline-flex items-center gap-1">
+              <button onclick="openPatientModal(${index})" title="Edit Data & Lab" class="p-2 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 transition">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button onclick="openSessionModal(${index})" title="Tambah Riwayat Sesi BB" class="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 transition">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+              </button>
+              <button onclick="viewPatientAsPortal(${index})" title="Buka Portal Pasien" class="p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 transition">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              </button>
+              <button onclick="deletePatient(${index})" title="Hapus Pasien" class="p-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 transition">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Update counters
+      document.getElementById('statTotalPatients').textContent = patients.length;
+      document.getElementById('statHighIDWG').textContent = totalHighIDWG;
+      document.getElementById('statTotalDocs').textContent = totalDocs;
+    }
+
+    // --- Modal Pasien Handlers ---
+    let currentUploadedFiles = [];
+
+    function openPatientModal(index = null) {
+      const modal = document.getElementById('patientModal');
+      const form = document.getElementById('patientForm');
+      form.reset();
+      currentUploadedFiles = [];
+      document.getElementById('formFilesCurrentList').innerHTML = '';
+
+      if (index !== null && patients[index]) {
+        const p = patients[index];
+        document.getElementById('modalPatientTitle').textContent = `Edit Pasien: ${p.name}`;
+        document.getElementById('formPatientIndex').value = index;
+        document.getElementById('formName').value = p.name;
+        document.getElementById('formRM').value = p.rm;
+        document.getElementById('formPIN').value = p.pin;
+        document.getElementById('formBB').value = p.bb;
+        document.getElementById('formDryBB').value = p.dryBb;
+        document.getElementById('formTB').value = p.tb;
+        document.getElementById('formUrine').value = p.urine || 0;
+
+        // Populate labs
+        LAB_KEYS.forEach(lab => {
+          const input = document.getElementById(`lab_${lab.id}`);
+          if (input) input.value = p.labs && p.labs[lab.id] ? p.labs[lab.id] : '';
+        });
+
+        // Populate files
+        if (p.files) {
+          currentUploadedFiles = [...p.files];
+          renderModalFilesList();
+        }
+      } else {
+        document.getElementById('modalPatientTitle').textContent = "Tambah Data Pasien Hemodialisis";
+        document.getElementById('formPatientIndex').value = "";
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closePatientModal() {
+      document.getElementById('patientModal').classList.add('hidden');
+    }
+
+    function renderModalFilesList() {
+      const container = document.getElementById('formFilesCurrentList');
+      container.innerHTML = '';
+      currentUploadedFiles.forEach((f, idx) => {
+        const item = document.createElement('div');
+        item.className = "flex items-center justify-between p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs";
+        item.innerHTML = `
+          <div class="flex items-center gap-2 truncate">
+            <i class="fa-solid ${f.type === 'pdf' ? 'fa-file-pdf text-rose-500' : 'fa-file-image text-blue-500'}"></i>
+            <span class="truncate font-medium">${f.name}</span>
+          </div>
+          <button type="button" onclick="removeUploadedFile(${idx})" class="text-rose-500 hover:text-rose-700 px-1 font-bold">&times;</button>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function removeUploadedFile(index) {
+      currentUploadedFiles.splice(index, 1);
+      renderModalFilesList();
+    }
+
+    // Convert file to base64
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handlePatientFormSubmit(e) {
+      e.preventDefault();
+      const idx = document.getElementById('formPatientIndex').value;
+      const fileInput = document.getElementById('formFileInput');
+
+      if (fileInput.files.length > 0) {
+        for (let i = 0; i < fileInput.files.length; i++) {
+          const file = fileInput.files[i];
+          const base64Data = await fileToBase64(file);
+          currentUploadedFiles.push({
+            name: file.name,
+            type: file.type.includes('pdf') ? 'pdf' : 'img',
+            data: base64Data
+          });
+        }
+      }
+
+      const labsObj = {};
+      LAB_KEYS.forEach(lab => {
+        const input = document.getElementById(`lab_${lab.id}`);
+        labsObj[lab.id] = input ? input.value.trim() : '';
+      });
+
+      const name = document.getElementById('formName').value.trim();
+      const rm = document.getElementById('formRM').value.trim();
+      const pin = document.getElementById('formPIN').value.trim();
+      const bb = parseFloat(document.getElementById('formBB').value);
+      const dryBb = parseFloat(document.getElementById('formDryBB').value);
+      const tb = parseFloat(document.getElementById('formTB').value);
+      const urine = parseFloat(document.getElementById('formUrine').value) || 0;
+
+      const bmi = calculateBMI(bb, tb);
+      const bmiCat = getBMIClassificationKemenkes(bmi).category;
+
+      if (idx !== "") {
+        // Update Existing
+        const p = patients[idx];
+        p.name = name;
+        p.rm = rm;
+        p.pin = pin;
+        p.bb = bb;
+        p.dryBb = dryBb;
+        p.tb = tb;
+        p.urine = urine;
+        p.labs = labsObj;
+        p.files = currentUploadedFiles;
+      } else {
+        // Create New Patient
+        const newPatient = {
+          name, rm, pin, bb, dryBb, tb, urine,
+          labs: labsObj,
+          files: currentUploadedFiles,
+          history: [
+            {
+              date: "Sesi Awal",
+              bb: bb,
+              dryBb: dryBb,
+              tb: tb,
+              bmi: parseFloat(bmi),
+              category: bmiCat
+            }
+          ]
+        };
+        patients.push(newPatient);
+      }
+
+      savePatientsToLocalStorage();
+      closePatientModal();
+      renderNurseTable();
+      populateLoginSelect();
+
+      if (currentActivePatientIndex !== null) {
+        loadPatientView(currentActivePatientIndex);
+      }
+    }
+
+    function deletePatient(index) {
+      if (confirm(`Yakin ingin menghapus data pasien: ${patients[index].name}?`)) {
+        patients.splice(index, 1);
+        savePatientsToLocalStorage();
+        renderNurseTable();
+        populateLoginSelect();
+        if (currentActivePatientIndex === index) {
+          patientLogout();
+        }
+      }
+    }
+
+    // --- Sesi Antropometri Handlers ---
+    function openSessionModal(index) {
+      document.getElementById('sessionPatientIndex').value = index;
+      const p = patients[index];
+      document.getElementById('sessionBB').value = p.bb;
+      document.getElementById('sessionDryBB').value = p.dryBb;
+      document.getElementById('sessionTB').value = p.tb;
+      document.getElementById('sessionDate').value = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+      document.getElementById('sessionModal').classList.remove('hidden');
+    }
+
+    function closeSessionModal() {
+      document.getElementById('sessionModal').classList.add('hidden');
+    }
+
+    function handleSessionSubmit(e) {
+      e.preventDefault();
+      const idx = document.getElementById('sessionPatientIndex').value;
+      const p = patients[idx];
+      const date = document.getElementById('sessionDate').value.trim();
+      const bb = parseFloat(document.getElementById('sessionBB').value);
+      const dryBb = parseFloat(document.getElementById('sessionDryBB').value);
+      const tb = parseFloat(document.getElementById('sessionTB').value);
+
+      const bmi = parseFloat(calculateBMI(bb, tb));
+      const cat = getBMIClassificationKemenkes(bmi).category;
+
+      if (!p.history) p.history = [];
+      p.history.push({ date, bb, dryBb, tb, bmi, category: cat });
+
+      // Update current values
+      p.bb = bb;
+      p.dryBb = dryBb;
+      p.tb = tb;
+
+      savePatientsToLocalStorage();
+      closeSessionModal();
+      renderNurseTable();
+      if (currentActivePatientIndex === parseInt(idx)) {
+        loadPatientView(currentActivePatientIndex);
+      }
+      alert('Sesi penimbangan berhasil ditambahkan ke riwayat!');
+    }
+
+    // --- Portal Pasien Logic ---
+    function populateLoginSelect() {
+      const select = document.getElementById('loginPatientSelect');
+      select.innerHTML = '<option value="">-- Pilih Nama Anda --</option>';
+      patients.forEach((p, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${p.name} (RM: ${p.rm})`;
+        select.appendChild(opt);
+      });
+    }
+
+    function attemptPatientLogin() {
+      const select = document.getElementById('loginPatientSelect');
+      const pinInput = document.getElementById('loginPinInput');
+      const err = document.getElementById('loginErrorMsg');
+
+      const selectedIdx = select.value;
+      const enteredPin = pinInput.value.trim();
+
+      if (selectedIdx === "" || !enteredPin) {
+        err.textContent = "Silakan pilih nama dan ketik 4 digit PIN Anda!";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      const p = patients[selectedIdx];
+      if (p && p.pin === enteredPin) {
+        err.classList.add('hidden');
+        pinInput.value = '';
+        currentActivePatientIndex = parseInt(selectedIdx);
+        loadPatientView(currentActivePatientIndex);
+      } else {
+        err.textContent = "PIN salah! Silakan hubungi perawat hemodialisis.";
+        err.classList.remove('hidden');
+      }
+    }
+
+    function viewPatientAsPortal(index) {
+      currentActivePatientIndex = index;
+      switchRole('patient');
+      loadPatientView(index);
+    }
+
+    function patientLogout() {
+      currentActivePatientIndex = null;
+      document.getElementById('patientLoginView').classList.remove('hidden');
+      document.getElementById('patientContentView').classList.add('hidden');
+    }
+
+    function loadPatientView(index) {
+      const p = patients[index];
+      if (!p) return;
+
+      document.getElementById('patientLoginView').classList.add('hidden');
+      document.getElementById('patientContentView').classList.remove('hidden');
+
+      // Banner
+      document.getElementById('ptBannerRM').textContent = `RM: ${p.rm}`;
+      document.getElementById('ptBannerName').textContent = p.name;
+
+      // 1. BMI Card
+      const bmi = calculateBMI(p.bb, p.tb);
+      const bmiClass = getBMIClassificationKemenkes(bmi);
+      document.getElementById('ptMetricBMI').textContent = bmi;
+      const catBadge = document.getElementById('ptMetricBMICat');
+      catBadge.textContent = bmiClass.category;
+      catBadge.className = `text-xs font-bold px-2.5 py-0.5 rounded-full ${bmiClass.color}`;
+      document.getElementById('ptMetricAntropoDesc').textContent = `BB: ${p.bb} kg | TB: ${p.tb} cm | Target Kering: ${p.dryBb} kg`;
+
+      // 2. IDWG Card
+      const idwg = calculateIDWG(p.bb, p.dryBb);
+      const idwgElem = document.getElementById('ptMetricIDWG');
+      const idwgStatusElem = document.getElementById('ptMetricIDWGStatus');
+      idwgElem.textContent = `${idwg}%`;
+      if (parseFloat(idwg) < 5) {
+        idwgElem.className = "text-3xl font-black text-emerald-600";
+        idwgStatusElem.textContent = "Normal (< 5%)";
+        idwgStatusElem.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800";
+      } else {
+        idwgElem.className = "text-3xl font-black text-rose-600";
+        idwgStatusElem.textContent = "Overload (≥ 5%)";
+        idwgStatusElem.className = "text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 animate-pulse";
+      }
+
+      // 3. Batas Minum Card
+      const fluid = calculateFluidAllowance(p.urine);
+      document.getElementById('ptMetricFluid').textContent = `${fluid} ml`;
+
+      // Render Riwayat Tabel & Chart
+      renderHistoryTable(p);
+      renderChart(p);
+
+      // Render 13 Lab Parameters
+      renderLabsGrid(p.labs);
+
+      // Render Files
+      renderPatientFiles(p.files);
+    }
+
+    function renderHistoryTable(p) {
+      const tbody = document.getElementById('ptHistoryTableBody');
+      tbody.innerHTML = '';
+      const list = p.history || [];
+
+      list.slice().reverse().forEach(h => {
+        const cat = getBMIClassificationKemenkes(h.bmi);
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-750";
+        tr.innerHTML = `
+          <td class="px-4 py-2 font-bold">${h.date}</td>
+          <td class="px-4 py-2">${h.bb} kg</td>
+          <td class="px-4 py-2">${h.dryBb} kg</td>
+          <td class="px-4 py-2">${h.tb} cm</td>
+          <td class="px-4 py-2 font-black">${h.bmi}</td>
+          <td class="px-4 py-2">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${cat.color}">${h.category || cat.category}</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderChart(p) {
+      const ctx = document.getElementById('bmiChartCanvas').getContext('2d');
+      const list = p.history || [];
+
+      const labels = list.map(h => h.date);
+      const bmiValues = list.map(h => h.bmi);
+      
+      const pointColors = list.map(h => {
+        const val = parseFloat(h.bmi);
+        if (val < 18.5) return '#3b82f6'; // Kurus - blue
+        if (val <= 22.9) return '#10b981'; // Normal - green
+        if (val <= 24.9) return '#f59e0b'; // Overweight - amber
+        if (val <= 29.9) return '#f97316'; // Obesitas I - orange
+        return '#ef4444'; // Obesitas II - red
+      });
+
+      if (bmiChart) bmiChart.destroy();
+
+      const isDark = document.body.classList.contains('dark-mode');
+
+      bmiChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'BMI Pasien',
+            data: bmiValues,
+            borderColor: '#0d9488',
+            backgroundColor: 'rgba(13, 148, 136, 0.1)',
+            pointBackgroundColor: pointColors,
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 6,
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                afterLabel: function(context) {
+                  return getBMIClassificationKemenkes(context.parsed.y).category;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false,
+              grid: { color: isDark ? '#334155' : '#e2e8f0' },
+              ticks: { color: isDark ? '#94a3b8' : '#64748b' }
+            },
+            x: {
+              grid: { color: isDark ? '#334155' : '#e2e8f0' },
+              ticks: { color: isDark ? '#94a3b8' : '#64748b' }
+            }
+          }
+        }
+      });
+    }
+
+    function parseStatusBadge(valString) {
+      if (!valString) return { text: '-', badge: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400' };
+      const lower = valString.toLowerCase();
+      if (lower.includes('naik') || lower.includes('tinggi') || lower.includes('high')) {
+        return { text: valString, badge: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold' };
+      }
+      if (lower.includes('turun') || lower.includes('rendah') || lower.includes('low')) {
+        return { text: valString, badge: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold' };
+      }
+      if (lower.includes('normal')) {
+        return { text: valString, badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold' };
+      }
+      return { text: valString, badge: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 font-semibold' };
+    }
+
+    function renderLabsGrid(labs = {}) {
+      const grid = document.getElementById('labsCardGrid');
+      grid.innerHTML = '';
+
+      LAB_KEYS.forEach(lab => {
+        const rawVal = labs[lab.id] || '-';
+        const parsed = parseStatusBadge(rawVal);
+
+        const card = document.createElement('div');
+        card.className = "p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-750 flex flex-col justify-between";
+        card.innerHTML = `
+          <div>
+            <span class="text-[10px] font-bold text-slate-400 block">${lab.name}</span>
+            <span class="text-xs text-slate-400">${lab.unit}</span>
+          </div>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-xs font-black truncate">${parsed.text}</span>
+            <span class="text-[9px] px-2 py-0.5 rounded-full ${parsed.badge}">
+              ${rawVal.includes('Naik') ? '▲ Naik' : rawVal.includes('Turun') ? '▼ Turun' : rawVal.includes('Normal') ? '✔ Normal' : 'Info'}
+            </span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function renderPatientFiles(files = []) {
+      const container = document.getElementById('ptFilesList');
+      container.innerHTML = '';
+
+      if (!files || files.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 italic col-span-full">Belum ada berkas laboratorium yang diunggah oleh perawat.</p>`;
+        return;
+      }
+
+      files.forEach((f, idx) => {
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750";
+        div.innerHTML = `
+          <div class="flex items-center gap-2.5 truncate">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center ${f.type === 'pdf' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}">
+              <i class="fa-solid ${f.type === 'pdf' ? 'fa-file-pdf' : 'fa-image'}"></i>
+            </div>
+            <div class="truncate">
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">${f.name}</p>
+              <span class="text-[10px] uppercase font-semibold text-slate-400">${f.type}</span>
+            </div>
+          </div>
+          <a href="${f.data}" download="${f.name}" target="_blank" class="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center gap-1 transition">
+            <i class="fa-solid fa-download"></i> Buka
+          </a>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // --- Backup & Restore Logic ---
+    function backupData() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(patients, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `HemoCare_Backup_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function restoreData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (Array.isArray(parsed)) {
+            patients = parsed;
+            savePatientsToLocalStorage();
+            renderNurseTable();
+            populateLoginSelect();
+            alert("Database pasien hemodialisis berhasil dipulihkan!");
+          } else {
+            alert("Format berkas backup tidak valid.");
+          }
+        } catch (err) {
+          alert("Gagal membaca file JSON backup: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>
